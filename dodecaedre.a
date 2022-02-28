@@ -68,6 +68,8 @@ print_operation: db "[%d] * [%d] = [%d]", 10, 0
 print_dodec: db "dodec + %d", 10, 0
 print_resmul: db "multiplication = %d", 10, 0
 print_currentpoint: db "point=[%d]", 10, 0
+print_single_coords: db "COORDS = %f", 10, 0
+
 
 df: dd 400.0
 zoff: dd 400.0
@@ -86,6 +88,7 @@ yB: dd 0
 xC: dd 0
 yC: dd 0
 
+normal: dd 0
 
 enter_xRot: db "Rotation X = ", 0
 enter_yRot: db "Rotation Y = ", 0
@@ -212,86 +215,95 @@ loop:
         mov rax, 0
         call printf
 
+		mov eax, dword[current_point]
+		mov ebx, 3
+		mul ebx
 
-			mov eax, dword[current_point]
-			mov ebx, 3
-			mul ebx
+		; X
+		mov dword[counter], eax
+		mov ecx, dword[counter]
+		movss xmm0, dword[dodec+ecx*DWORD]; store X (movss -> 32bits)
+		movss dword[xA], xmm0
 
-			mov dword[counter], 0
-			mov ecx, dword[counter]
-			movss xmm0, dword[dodec+ecx*DWORD]; store X (movss -> 32bits)
-			movss dword[xA], xmm0
+		inc dword[counter]
+		mov ecx, dword[counter]
+		movss xmm0, dword[dodec+ecx*DWORD]; store Y (movss -> 32bits)
+		movss dword[yA], xmm0
+		
+		; Y
+		inc dword[counter]
+		mov ecx, dword[counter]
+		movss xmm0, dword[dodec+ecx*DWORD]; store Y (movss -> 32bits)
+		movss dword[xB], xmm0
 
-			; X
-			mov rdi, print_coords
-			mov esi, ecx
-			cvtss2sd xmm0, dword[dodec+ecx*DWORD]; ebx -> x/y/z
-			mov rax, 1
-			call printf
+		inc dword[counter]
+		mov ecx, dword[counter]
+		movss xmm0, dword[dodec+ecx*DWORD]; store Y (movss -> 32bits)
+		movss dword[yB], xmm0
 
-			;; X to Y (counter++)
-			inc dword[counter]
-			mov ecx, dword[counter]
-			movss xmm0, dword[dodec+ecx*DWORD]; store Y (movss -> 32bits)
-			movss dword[xA], xmm0
+		; Z
+		inc dword[counter]
+		mov ecx, dword[counter]
+		movss xmm0, dword[dodec+ecx*DWORD]; store Y (movss -> 32bits)
+		movss dword[xC], xmm0
 
-			mov rdi, print_coords
-			mov esi, ecx
-			cvtss2sd xmm0, dword[dodec+ecx*DWORD]; ebx -> x/y/z
-			mov rax, 1
-			call printf
+		inc dword[counter]
+		mov ecx, dword[counter]
+		movss xmm0, dword[dodec+ecx*DWORD]; store Y (movss -> 32bits)
+		movss dword[yC], xmm0
 
-			;; Y to Z (counter++)
-			inc dword[counter]
-			mov ecx, dword[counter]
-			movss xmm0, dword[dodec+ecx*DWORD]; store Z (movss -> 32bits)
-			movss dword[xA], xmm0
 
-			mov rdi, print_coords
-			mov esi, ecx
-			cvtss2sd xmm0, dword[dodec+ecx*DWORD]; ebx -> x/y/z
-			mov rax, 1
-			call printf
+		;;;;;;;;;;;;;;;;;;;;;
+		; normals
+		;;;;;;;;;;;;;;;;;;;;;
+		movss xmm0, dword[xA]
+		movss xmm1, dword[xB]
+		subss xmm0, xmm1 ;; xmm0 = xBA
+		movss dword[xBA], xmm0
 
-			;;;;;;;;;;;;;;;;;;;;;
-			; calculate vectors
-			;;;;;;;;;;;;;;;;;;;;;
-			movss xmm0, dword[xA]
-			movss xmm1, dword[xB]
-			subss xmm0, xmm1 ;; xmm0 = xBA
-			movss dword[xBA],xmm0
+		movss xmm0, dword[xC]
+		movss xmm1, dword[xB]
+		subss xmm0, xmm1 ;; xmm0 = xBC
+		movss dword[xBC], xmm0
 
-			movss xmm0, dword[yA]
-			movss xmm1, dword[yB]
-			subss xmm0, xmm1 ;; xmm0 = yBA
-			movss dword[yBA],xmm0
+		movss xmm0, dword[yA]
+		movss xmm1, dword[yB]
+		subss xmm0, xmm1 ;; xmm0 = yBA
+		movss dword[yBA], xmm0
 
-			movss xmm0, dword[xC]
-			movss xmm1, dword[xB]
-			subss xmm0, xmm1 ;; xmm0 = xBC
-			movss dword[xBA],xmm0
+		movss xmm0, dword[yC]
+		movss xmm1, dword[yB]
+		subss xmm0, xmm1 ;; xmm0 = yBC
+		movss dword[yBC], xmm0
 
-			movss xmm0, dword[yC]
-			movss xmm1, dword[yB]
-			subss xmm0, xmm1 ;; xmm0 = xBC
-			movss dword[yBA],xmm0
+		; ;; (XBA*YBC)-(YBA*XBC)
+		movss xmm0, dword[xBA]
+		mulss xmm0, [yBC] ;; xmm0 = xBA*yBC
+		; ; xmm0 * [yBC] -> xmm0
 
-			movss xmm0,dword[xBA]
-			mulss xmm0,[yBC] ;; xmm0 = xBA*xBC
+		movss xmm1, dword[yBA]
+		mulss xmm1, [xBC] ;; xmm1 = yBA*xBC
+		; ; xmm1 * [xBC] -> xmm1
 
-			movss xmm1,dword[yBA]
-			mulss xmm1,[xBC] ;; xmm1 = yBA*xBC
+		subss xmm0, xmm1
 
-			;; (XBA*YBC)-(YBA*XBC)
-			subss xmm0, xmm1
+		cvtss2si eax, xmm0
+		mov dword[normal], eax
 
-			;; Ceci est la coordonnée en Z du vecteur perpendiculaire à la face (ou vecteur normal). Si 
-			;; cette valeur est nulle ou négative, alors cela signifie que la face ne pointe pas vers l'œil et 
-			;; qu'elle ne doit pas être affichée
-			cvtss2si eax,xmm0 ;; xmm0 to integer
-			cmp eax, 0
-			
-			
+		; > 0 => can't see | < 0 => can see
+		cmp dword[normal], 0
+		; jg ok
+
+		mov rdi, print_debug
+		mov esi, dword[normal]
+		mov rax, 0
+		call printf
+
+		; ;; Ceci est la coordonnée en Z du vecteur perpendiculaire à la face (ou vecteur normal). Si 
+		; ;; cette valeur est nulle ou négative, alors cela signifie que la face ne pointe pas vers l'œil et 
+		; ;; qu'elle ne doit pas être affichée
+
+		; cmp eax, 0
 
         ; we have 4 points for each face
         inc word[j]; j++
