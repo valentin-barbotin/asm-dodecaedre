@@ -60,13 +60,14 @@ sinus:	resd	360
 
 section .data
 
-scan_int: db "%hhd", 0
+scan_int: db "%d", 0
 print_int: db "value = %hhd", 10, 0
 print_point: db "point nb = %d", 10, 0
 print_face: db "value face = %d", 10, 0
 print_coords: db "%d coords = %f", 10, 0
 print_coords2: db "coords = %f", 10, 0
 print_debug: db "DEBUG=[%d]", 10, 0
+print_debugF: db "DEBUG=[%f]", 10, 0
 print_debug2: db "2 - DEBUG=[%d]  - %d", 10, 0
 print_ici: db "ici", 10, 0
 print_operation: db "[%d] * [%d] = [%d]", 10, 0
@@ -84,6 +85,10 @@ print_ABC: db 10, "A = %d, B = %d, C = %d", 10, 0
 print_xyz: db 10, "XA = %d, YA = %d, XB = %d, XY = %d, XC = %d, YC = %d", 10, 0
 print_xyz2: db 10, "X = %f --- Y = %f --- Z = %f ---", 10, 0
 
+print_xRotPos: db "xRotPos index %d", 10, 0
+print_yRotPos: db "yRotPos index %d", 10, 0
+print_zRotPos: db "zRotPos index %d", 10, 0
+
 angle:	dd	0
 demiangle:	dd	180
 
@@ -96,6 +101,10 @@ yoff: dd 200.0
 xRot: dd 0
 yRot: dd 0
 zRot: dd 0
+
+xRotPos: dd 0
+yRotPos: dd 0
+zRotPos: dd 0
 
 
 xBA: dd 0
@@ -148,6 +157,9 @@ facesPos:	db	0
 pointPos:	dd	0
 savePoint1:	dd	0
 savePoint2:	dd	0
+
+rotFirst: dd 0
+rotSecond: dd 0
 
 event:		times	24 dq 0
 
@@ -772,34 +784,111 @@ mov dword[pointPos], eax ; 3 * 0 , 3 * 1 .. put ourselves in the right place
 mov ecx, dword[pointPos]
 movss xmm0, dword[dodec+ecx*DWORD]
 movss dword[xRot], xmm0
+mov dword[xRotPos], ecx
 inc dword[pointPos]
+
+mov rdi, print_xRotPos
+mov esi, dword[xRotPos]
+mov rax, 0
+call printf
 
 
 ; get Y
 mov ecx, dword[pointPos]
 movss xmm0, dword[dodec+ecx*DWORD]
 movss dword[yRot], xmm0
+mov dword[yRotPos], ecx
 inc dword[pointPos]
+
+mov rdi, print_yRotPos
+mov esi, dword[yRotPos]
+mov rax, 0
+call printf
 
 
 ; get Z
 mov ecx, dword[pointPos]
 movss xmm0, dword[dodec+ecx*DWORD]
 movss dword[zRot], xmm0
+mov dword[zRotPos], ecx
 inc dword[pointPos]
 
-mov rdi, print_debug
-mov esi, dword[pointPos]
+mov rdi, print_zRotPos
+mov esi, dword[zRotPos]
 mov rax, 0
 call printf
 
+; x' = x
+; y' = y*cos(angX) - z*sin(angX)
+; z' = y*sin(angX) + z*cos(angX)
+; dword[cosinus+ecx*DWORD]
+; dword[sinus+ecx*DWORD]
 
-mov rdi, print_xyz2
-cvtss2sd xmm0, dword[xRot]
-cvtss2sd xmm1, dword[yRot]
-cvtss2sd xmm2, dword[zRot]
-mov rax, 3
+;;;;;;;;;;;;;;;;;;;;;;;;;;AXE X
+;;;;;;;;;;;;;;;;;;;;;;;;;;ANGLE Y
+movss xmm0, dword[yRot]; y
+mov ecx, dword[rotationX] ; cos angle x
+mulss xmm0, dword[cosinus+ecx*DWORD] ; -> y*cos(angX)
+movss xmm1, xmm0
+
+; mov rdi, print_debug
+mov rdi, print_coords2
+movss xmm0, dword[cosinus+ecx*DWORD]
+; mov esi, dword[rotationX]
+mov rax, 1
 call printf
+
+movss dword[rotFirst], xmm0
+
+;z*sin(angX)
+movss xmm0, dword[zRot]; z
+mov ecx, dword[rotationX] ; sin angle x
+mulss xmm0, dword[sinus+ecx*DWORD]  ; -> z*sin(angX)
+movss dword[rotSecond], xmm0
+
+movss xmm1, dword[rotSecond]
+subss xmm0, xmm1 ;; rotFirst - rotSecond
+
+mov ecx, dword[yRotPos]
+
+; mov rdi, print_debug
+; cvtss2si esi, xmm0
+; mov rax, 0
+; call printf
+
+movss dword[dodec+ecx*DWORD], xmm0 ; update point
+
+; movss xmm0, xmm1
+
+; mov rdi, print_coords2
+; cvtss2sd xmm0, dword[dodec+ecx*DWORD]
+; mov rax, 1
+; call printf
+;;;;;;;;;;;;;;;;;;;;;;;;;;ANGLE Y
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;ANGLE Z
+movss xmm0, dword[yRot]; y
+mov ecx, dword[rotationX] ; sin angle x
+mulss xmm0, dword[sinus+ecx*DWORD] ; -> y*sin(angX)
+movss dword[rotFirst], xmm0
+
+;x*cos(angX)
+movss xmm0, dword[zRot]; z
+mov ecx, dword[rotationX] ; cos angle x
+mulss xmm0, dword[cosinus+ecx*DWORD]  ; -> z*cos(angX)
+movss dword[rotSecond], xmm0
+
+movss xmm1, dword[rotSecond]
+addss xmm0, xmm1 ;; rotFirst + rotSecond
+
+mov ecx, dword[zRotPos]
+
+movss dword[dodec+ecx*DWORD], xmm0 ; update point
+;;;;;;;;;;;;;;;;;;;;;;;;;;ANGLE Z
+
+
+
 
 jmp editPointsNext
 
