@@ -88,6 +88,15 @@ yB: dd 0
 xC: dd 0
 yC: dd 0
 
+A: dd 0
+B: dd 0
+C: dd 0
+
+finalX1: dd 0
+finalY1: dd 0
+finalX2: dd 0
+finalY2: dd 0
+
 normal: dd 0
 
 enter_xRot: db "Rotation X = ", 0
@@ -98,13 +107,25 @@ nb_faces: db  4
 
 counter: dd 0
 i: dw 0
-j: dw 0
+j: db 0
 k: dw 0
 
 x1:	dd	0
 x2:	dd	0
 y1:	dd	0
 y2:	dd	0
+z1:	dd	0
+z2:	dd	0
+
+firstDiv 	dd	0
+secondDiv 	dd	0
+
+point: dd 0
+
+facesPos:	db	0
+pointPos:	db	0
+savePoint1:	db	0
+savePoint2:	db	0
 
 event:		times	24 dq 0
 
@@ -172,166 +193,8 @@ section .text
 ;##################################################
 
 main:
-jmp next
 
 push rbp
-
-draw:
-
-; loop over faces
-mov word[i], 0
-loop:
-    
-    mov rdi, print_face
-    movzx esi, word[i]
-    mov rax, 0
-    call printf
-
-    ; loop over points of the face
-    mov word[j], 0
-    subloop:
-	 	; get index
-		; faces + 1/2/3/4/5/6/7 etc, each 4 => new face
-        movzx eax, word[i]
-        mov ebx, 4
-        mul ebx
-
-		mov dword[result_mul], eax ; store multiplication result
-
-        movzx eax, word[j] ; store 0/1/2/3
-		add eax, dword[result_mul]
-
-
-		; mov dword[result_mul], eax ; store multiplication result
-
-		mov eax, dword[faces+eax*DWORD] ; store current point
-		mov dword[current_point], eax
-
-		; pop rax; restore mul (0/4/8/12 etc) 
-		
-	 	; print index for faces array
-        mov rdi, print_point
-        mov esi, eax
-        mov rax, 0
-        call printf
-
-		mov eax, dword[current_point]
-		mov ebx, 3
-		mul ebx
-
-		; X
-		mov dword[counter], eax
-		mov ecx, dword[counter]
-		movss xmm0, dword[dodec+ecx*DWORD]; store X (movss -> 32bits)
-		movss dword[xA], xmm0
-
-		inc dword[counter]
-		mov ecx, dword[counter]
-		movss xmm0, dword[dodec+ecx*DWORD]; store Y (movss -> 32bits)
-		movss dword[yA], xmm0
-		
-		; Y
-		inc dword[counter]
-		mov ecx, dword[counter]
-		movss xmm0, dword[dodec+ecx*DWORD]; store Y (movss -> 32bits)
-		movss dword[xB], xmm0
-
-		inc dword[counter]
-		mov ecx, dword[counter]
-		movss xmm0, dword[dodec+ecx*DWORD]; store Y (movss -> 32bits)
-		movss dword[yB], xmm0
-
-		; Z
-		inc dword[counter]
-		mov ecx, dword[counter]
-		movss xmm0, dword[dodec+ecx*DWORD]; store Y (movss -> 32bits)
-		movss dword[xC], xmm0
-
-		inc dword[counter]
-		mov ecx, dword[counter]
-		movss xmm0, dword[dodec+ecx*DWORD]; store Y (movss -> 32bits)
-		movss dword[yC], xmm0
-
-
-		;;;;;;;;;;;;;;;;;;;;;
-		; normals
-		;;;;;;;;;;;;;;;;;;;;;
-		movss xmm0, dword[xA]
-		movss xmm1, dword[xB]
-		subss xmm0, xmm1 ;; xmm0 = xBA
-		movss dword[xBA], xmm0
-
-		movss xmm0, dword[xC]
-		movss xmm1, dword[xB]
-		subss xmm0, xmm1 ;; xmm0 = xBC
-		movss dword[xBC], xmm0
-
-		movss xmm0, dword[yA]
-		movss xmm1, dword[yB]
-		subss xmm0, xmm1 ;; xmm0 = yBA
-		movss dword[yBA], xmm0
-
-		movss xmm0, dword[yC]
-		movss xmm1, dword[yB]
-		subss xmm0, xmm1 ;; xmm0 = yBC
-		movss dword[yBC], xmm0
-
-		; ;; (XBA*YBC)-(YBA*XBC)
-		movss xmm0, dword[xBA]
-		mulss xmm0, [yBC] ;; xmm0 = xBA*yBC
-		; ; xmm0 * [yBC] -> xmm0
-
-		movss xmm1, dword[yBA]
-		mulss xmm1, [xBC] ;; xmm1 = yBA*xBC
-		; ; xmm1 * [xBC] -> xmm1
-
-		subss xmm0, xmm1
-
-		cvtss2si eax, xmm0
-		mov dword[normal], eax
-
-		; > 0 => can't see | < 0 => can see
-		cmp dword[normal], 0
-		; jg ok
-
-		mov rdi, print_debug
-		mov esi, dword[normal]
-		mov rax, 0
-		call printf
-
-		; ;; Ceci est la coordonnée en Z du vecteur perpendiculaire à la face (ou vecteur normal). Si 
-		; ;; cette valeur est nulle ou négative, alors cela signifie que la face ne pointe pas vers l'œil et 
-		; ;; qu'elle ne doit pas être affichée
-
-		; cmp eax, 0
-
-        ; we have 4 points for each face
-        inc word[j]; j++
-        cmp word[j], 4
-        jne subloop
-
-; if the faces[19] is ok, jump next
-inc word[i]; i++
-cmp word[i], 20; 20 faces => 0 to 19
-jne loop
-
-jmp prog_principal
-
-next:
-
-; mov rdi, print_face
-; movzx esi, word[count]
-; mov rax, 0
-; call printf
-
-
-; mov ecx, 2
-; mov ecx, dword[faces+ecx*DWORD]
-
-; mov rdi, print_face
-; mov esi, ecx
-; mov rax, 0
-; call printf
 
 ; ;-------------------
 ; ; rotation X
@@ -366,7 +229,6 @@ next:
 ; mov rsi, rotationZ
 ; mov rax, 0
 ; call scanf
-
 
 
 ;####################################
@@ -418,8 +280,6 @@ mov rsi,qword[gc]
 mov rdx,0x000000	; Couleur du crayon
 call XSetForeground
 
-jmp loop
-
 ; boucle de gestion des évènements
 boucle: 
 	mov rdi,qword[display_name]
@@ -441,8 +301,13 @@ jmp boucle
 ;############################################ 
 prog_principal:
 
+mov byte[i], 0
+mainloop:
+	inc byte[i]; i++
+	cmp byte[i], 19; 20 faces => 0 to 19
+	ja flush
 
-; jmp draw
+	jmp normals
 
 ;##############################################
 ;##	Ici se termine VOTRE programme principal ##
@@ -467,29 +332,276 @@ closeDisplay:
     xor	    rdi,rdi
     call    exit
 
-	
 
-global showcoords
-showcoords:
+mov byte[j], 0
+dessins:
+cmp byte[j], 3
+jae mainloop
 
-	mov rdi, print_ici
-	mov rax, 0
-	
-	call printf
+mov al, 4
+mul byte[i]
+mov byte[facesPos], al ; 4 * 0 , 4 * 1 .. put ourselves in the right place
 
-	; mov dword[x1],50
-	; mov dword[y1],50
-	; mov dword[x2],200
-	; mov dword[y2],350
-	; ; dessin de ligne
+; get first point
+movzx ecx, byte[facesPos]
+mov al, byte[faces+ecx] ; on recupere le point (0,1,2,3) depuis facesPos
+mov byte[savePoint1], al ; on le met dans savePoint1
 
-	; mov rdi,qword[display_name]
-	; mov rsi,qword[window]
-	; mov rdx,qword[gc]
-	; mov ecx,dword[x1]	; coordonnée source en x
-	; mov r8d,dword[y1]	; coordonnée source en y
-	; mov r9d,dword[x2]	; coordonnée destination en x
-	; push qword[y2]		; coordonnée destination en y
-	; call XDrawLine
+inc byte[j]
+inc byte[facesPos]
 
-ret
+; get second point
+movzx ecx, byte[facesPos]
+mov al, byte[faces+ecx]
+mov byte[savePoint2], al ; on le met dans savePoint2
+
+; recuperer les coordonnées du point "1"
+mov al, 3
+mul byte[savePoint1] ; 0 * 3 = point 1,  1 * 3 = point 2 ..
+mov byte[pointPos], al ; set pointPos for point 1
+
+; point 1
+movzx ecx, byte[pointPos]
+movss xmm0, dword[dodec+ecx*DWORD]
+movss dword[x1], xmm0
+
+inc byte[pointPos]; pointPos++ (y)
+movzx ecx, byte[pointPos]
+movss xmm0, dword[dodec+ecx*DWORD]
+movss dword[y1], xmm0
+
+inc byte[pointPos] ; pointPos++ (z)
+movzx ecx, byte[pointPos]
+movss xmm0, dword[dodec+ecx*DWORD]
+movss dword[z1], xmm0
+
+
+; recuperer les coordonnées du point "2"
+mov al, 3
+mul byte[savePoint2]
+mov byte[pointPos], al ; reset pointPos for point 2
+
+; point 1
+movzx ecx, byte[pointPos]
+movss xmm0, dword[dodec+ecx*DWORD]
+movss dword[x2], xmm0
+
+inc byte[pointPos]; pointPos++ (y)
+movzx ecx, byte[pointPos]
+movss xmm0, dword[dodec+ecx*DWORD]
+movss dword[y2], xmm0
+
+inc byte[pointPos] ; pointPos++ (z)
+movzx ecx, byte[pointPos]
+movss xmm0, dword[dodec+ecx*DWORD]
+movss dword[z2], xmm0
+
+threeDto2D:
+; X'=(df*X)/(Z+Zoff)+Xoff
+; Y'=(df*Y)/(Z+Zoff)+Yoff
+
+
+;;;;;;;;;;;;;;;;;;; X1
+; (df*X)
+movss xmm0, dword[df]
+mulss xmm0, [x1]
+movss dword[firstDiv], xmm0
+
+; (Z+Zoff)
+movss xmm1, dword[z1]
+addss xmm1, dword[zoff]
+movss dword[secondDiv], xmm1
+
+; firstDiv / secondDiv    + Xoff
+divss xmm0, xmm1
+addss xmm0, dword[xoff]
+
+cvtss2si eax, xmm0; to int
+mov dword[finalX1], eax
+
+;;;;;;;;;;;;;;;;;;; Y1
+; (df*Y)
+movss xmm0, dword[df]
+mulss xmm0, [y1]
+movss dword[firstDiv], xmm0
+
+; (Z+Zoff)
+movss xmm1, dword[z1]
+addss xmm1, dword[yoff]
+movss dword[secondDiv], xmm1
+
+; firstDiv / secondDiv    + Xoff
+divss xmm0, xmm1
+addss xmm0, dword[xoff]
+
+cvtss2si eax, xmm0; to int
+mov dword[finalY1], eax
+
+
+
+
+;;;;;;;;;;;;;;;;;;; X1
+; (df*X)
+movss xmm0, dword[df]
+mulss xmm0, [x2]
+movss dword[firstDiv], xmm0
+
+; (Z+Zoff)
+movss xmm1, dword[z2]
+addss xmm1, dword[zoff]
+movss dword[secondDiv], xmm1
+
+; firstDiv / secondDiv    + Xoff
+divss xmm0, xmm1
+addss xmm0, dword[xoff]
+
+cvtss2si eax, xmm0; to int
+mov dword[finalX2], eax
+
+;;;;;;;;;;;;;;;;;;; Y1
+; (df*Y)
+movss xmm0, dword[df]
+mulss xmm0, [y2]
+movss dword[firstDiv], xmm0
+
+; (Z+Zoff)
+movss xmm1, dword[z2]
+addss xmm1, dword[yoff]
+movss dword[secondDiv], xmm1
+
+; firstDiv / secondDiv    + Xoff
+divss xmm0, xmm1
+addss xmm0, dword[xoff]
+
+cvtss2si eax, xmm0; to int
+mov dword[finalY2], eax
+
+
+mov rdi,qword[display_name]
+mov rsi,qword[window]
+mov rdx,qword[gc]
+mov ecx,dword[finalX1]
+mov r8d,dword[finalY1]
+mov r9d,dword[finalX2]
+push qword[finalY2]
+call XDrawLine
+jmp mainloop
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
+
+normals:
+;;;;;;;;;;;;;;;;;;;;;
+; normals
+;;;;;;;;;;;;;;;;;;;;;
+
+mov al, 4
+mul byte[i]
+mov byte[facesPos], al ; 4 * 0 , 4 * 1 .. put ourselves in the right place
+
+; get first point
+movzx ecx, byte[facesPos]
+movzx eax, byte[faces+ecx]
+mov dword[A], eax ; put point in A
+
+inc byte[facesPos]
+; get second point
+movzx ecx, byte[facesPos]
+movzx eax, byte[faces+ecx]
+mov dword[B], eax ; put point in B
+
+inc byte[facesPos]
+; get third point
+movzx ecx, byte[facesPos]
+movzx eax, byte[faces+ecx]
+mov dword[C], eax ; put point in C
+
+mov al, 3
+mul byte[A]
+movzx ax, al
+
+;;;Vecteur A
+movzx ecx, ax
+movss xmm0, dword[dodec+ecx*DWORD]
+movss dword[xA], xmm0
+
+inc ax
+movzx ecx, ax
+movss xmm0, dword[dodec+ecx*DWORD]
+movss dword[yA], xmm0
+;;;
+
+
+;;;Vecteur B
+movzx ecx, ax
+movss xmm0, dword[dodec+ecx*DWORD]
+movss dword[xB], xmm0
+
+inc ax
+movzx ecx, ax
+movss xmm0, dword[dodec+ecx*DWORD]
+movss dword[yB], xmm0
+;;;
+
+
+;;;Vecteur C
+movzx ecx, ax
+movss xmm0, dword[dodec+ecx*DWORD]
+movss dword[xC], xmm0
+
+inc ax
+movzx ecx, ax
+movss xmm0, dword[dodec+ecx*DWORD]
+movss dword[yC], xmm0
+;;;
+
+
+; multiplications (XBA*YBC)-(YBA*XBC)
+movss xmm0, dword[xA]
+movss xmm1, dword[xB]
+subss xmm0, xmm1 ;; xmm0 = xBA
+movss dword[xBA], xmm0
+
+movss xmm0, dword[xC]
+movss xmm1, dword[xB]
+subss xmm0, xmm1 ;; xmm0 = xBC
+movss dword[xBC], xmm0
+
+movss xmm0, dword[yA]
+movss xmm1, dword[yB]
+subss xmm0, xmm1 ;; xmm0 = yBA
+movss dword[yBA], xmm0
+
+movss xmm0, dword[yC]
+movss xmm1, dword[yB]
+subss xmm0, xmm1 ;; xmm0 = yBC
+movss dword[yBC], xmm0
+
+;; (XBA*YBC)-(YBA*XBC)
+movss xmm0, dword[xBA]
+mulss xmm0, [yBC] ;; xmm0 = xBA*yBC
+; xmm0 * [yBC] -> xmm0
+
+movss xmm1, dword[yBA]
+mulss xmm1, [xBC] ;; xmm1 = yBA*xBC
+; xmm1 * [xBC] -> xmm1
+
+subss xmm0, xmm1
+
+cvtss2si eax, xmm0
+mov dword[normal], eax
+
+; (normal > 0) can't see | (normal < 0) can see
+cmp dword[normal], 0
+
+mov rdi, print_debug
+mov esi, dword[normal]
+mov rax, 0
+call printf
+
+jg mainloop ; go next face if we can't draw this one
+
+jmp dessins
