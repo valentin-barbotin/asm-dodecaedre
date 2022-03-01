@@ -63,12 +63,19 @@ print_point: db "point nb = %d", 10, 0
 print_face: db "value face = %d", 10, 0
 print_coords: db "%d coords = %f", 10, 0
 print_debug: db "DEBUG=[%d]", 10, 0
+print_debug2: db "2 - DEBUG=[%d]  - %d", 10, 0
 print_ici: db "ici", 10, 0
 print_operation: db "[%d] * [%d] = [%d]", 10, 0
 print_dodec: db "dodec + %d", 10, 0
 print_resmul: db "multiplication = %d", 10, 0
 print_currentpoint: db "point=[%d]", 10, 0
 print_single_coords: db "COORDS = %f", 10, 0
+
+print_x1: db "X1 = %d", 10, 0
+print_y1: db "Y1 = %d", 10, 0
+print_x2: db "X2 = %d", 10, 0
+print_y2: db "Y2 = %d", 10, 0
+
 
 
 df: dd 400.0
@@ -123,9 +130,9 @@ secondDiv 	dd	0
 point: dd 0
 
 facesPos:	db	0
-pointPos:	db	0
-savePoint1:	db	0
-savePoint2:	db	0
+pointPos:	dd	0
+savePoint1:	dd	0
+savePoint2:	dd	0
 
 event:		times	24 dq 0
 
@@ -303,11 +310,21 @@ prog_principal:
 
 mov byte[i], 0
 mainloop:
+	; mov rdi, print_debug
+	; movzx rsi, byte[i]
+	; mov rax, 0
+	; call printf
+
+	mov byte[j], 0 ; j = 0
+	jmp normals
+
+	nextmainloop:
 	inc byte[i]; i++
 	cmp byte[i], 19; 20 faces => 0 to 19
 	ja flush
 
-	jmp normals
+	jmp mainloop
+
 
 ;##############################################
 ;##	Ici se termine VOTRE programme principal ##
@@ -333,66 +350,87 @@ closeDisplay:
     call    exit
 
 
-mov byte[j], 0
+; mov byte[j], 0
 dessins:
 cmp byte[j], 3
-jae mainloop
+jae nextmainloop
 
 mov al, 4
 mul byte[i]
+add al, byte[j] ;; al = 4*i+j
 mov byte[facesPos], al ; 4 * 0 , 4 * 1 .. put ourselves in the right place
+
+; ;;;;;;;;;debug
+; mov rdi, print_debug
+; movzx esi, al
+; mov rax, 0
+; call printf
+; ;;;;;;;;;debug
 
 ; get first point
 movzx ecx, byte[facesPos]
-mov al, byte[faces+ecx] ; on recupere le point (0,1,2,3) depuis facesPos
-mov byte[savePoint1], al ; on le met dans savePoint1
+mov eax, dword[faces+ecx*DWORD] ; on recupere le point (0,1,2,3) depuis facesPos
+; ;;;;;;;;;debug
+; mov rdi, print_debug
+; mov esi, eax
+; mov rax, 0
+; call printf
+; ;;;;;;;;;debug
+mov dword[savePoint1], eax ; on le met dans savePoint1
+
+;;;;;;;;;debug
+mov rdi, print_point
+mov esi, dword[savePoint1]
+mov rax, 0
+call printf
+;;;;;;;;;debug
 
 inc byte[j]
 inc byte[facesPos]
 
 ; get second point
 movzx ecx, byte[facesPos]
-mov al, byte[faces+ecx]
-mov byte[savePoint2], al ; on le met dans savePoint2
+mov eax, dword[faces+ecx*DWORD]
+mov dword[savePoint2], eax ; on le met dans savePoint2
 
 ; recuperer les coordonnées du point "1"
-mov al, 3
-mul byte[savePoint1] ; 0 * 3 = point 1,  1 * 3 = point 2 ..
-mov byte[pointPos], al ; set pointPos for point 1
+mov eax, 3
+mul dword[savePoint1] ; 0 * 3 = point 1,  1 * 3 = point 2 ..
+mov dword[pointPos], eax ; set pointPos for point 1
 
 ; point 1
-movzx ecx, byte[pointPos]
+mov ecx, dword[pointPos]
 movss xmm0, dword[dodec+ecx*DWORD]
 movss dword[x1], xmm0
 
-inc byte[pointPos]; pointPos++ (y)
-movzx ecx, byte[pointPos]
+inc dword[pointPos]; pointPos++ (y)
+mov ecx, dword[pointPos]
 movss xmm0, dword[dodec+ecx*DWORD]
 movss dword[y1], xmm0
 
-inc byte[pointPos] ; pointPos++ (z)
-movzx ecx, byte[pointPos]
+inc dword[pointPos] ; pointPos++ (z)
+mov ecx, dword[pointPos]
 movss xmm0, dword[dodec+ecx*DWORD]
 movss dword[z1], xmm0
 
 
 ; recuperer les coordonnées du point "2"
-mov al, 3
-mul byte[savePoint2]
-mov byte[pointPos], al ; reset pointPos for point 2
+mov eax, 3
+mul dword[savePoint2]
+mov dword[pointPos], eax ; reset pointPos for point 2
 
 ; point 1
-movzx ecx, byte[pointPos]
+mov ecx, dword[pointPos]
 movss xmm0, dword[dodec+ecx*DWORD]
 movss dword[x2], xmm0
 
-inc byte[pointPos]; pointPos++ (y)
-movzx ecx, byte[pointPos]
+inc dword[pointPos]; pointPos++ (y)
+mov ecx, dword[pointPos]
 movss xmm0, dword[dodec+ecx*DWORD]
 movss dword[y2], xmm0
 
-inc byte[pointPos] ; pointPos++ (z)
-movzx ecx, byte[pointPos]
+inc dword[pointPos] ; pointPos++ (z)
+mov ecx, dword[pointPos]
 movss xmm0, dword[dodec+ecx*DWORD]
 movss dword[z2], xmm0
 
@@ -412,7 +450,7 @@ movss xmm1, dword[z1]
 addss xmm1, dword[zoff]
 movss dword[secondDiv], xmm1
 
-; firstDiv / secondDiv    + Xoff
+; (firstDiv / secondDiv)    + Xoff
 divss xmm0, xmm1
 addss xmm0, dword[xoff]
 
@@ -427,12 +465,12 @@ movss dword[firstDiv], xmm0
 
 ; (Z+Zoff)
 movss xmm1, dword[z1]
-addss xmm1, dword[yoff]
+addss xmm1, dword[zoff]
 movss dword[secondDiv], xmm1
 
-; firstDiv / secondDiv    + Xoff
+; (firstDiv / secondDiv)    + Xoff
 divss xmm0, xmm1
-addss xmm0, dword[xoff]
+addss xmm0, dword[yoff]
 
 cvtss2si eax, xmm0; to int
 mov dword[finalY1], eax
@@ -440,7 +478,7 @@ mov dword[finalY1], eax
 
 
 
-;;;;;;;;;;;;;;;;;;; X1
+;;;;;;;;;;;;;;;;;;; X2
 ; (df*X)
 movss xmm0, dword[df]
 mulss xmm0, [x2]
@@ -458,7 +496,7 @@ addss xmm0, dword[xoff]
 cvtss2si eax, xmm0; to int
 mov dword[finalX2], eax
 
-;;;;;;;;;;;;;;;;;;; Y1
+;;;;;;;;;;;;;;;;;;; Y2
 ; (df*Y)
 movss xmm0, dword[df]
 mulss xmm0, [y2]
@@ -466,16 +504,38 @@ movss dword[firstDiv], xmm0
 
 ; (Z+Zoff)
 movss xmm1, dword[z2]
-addss xmm1, dword[yoff]
+addss xmm1, dword[zoff]
 movss dword[secondDiv], xmm1
 
 ; firstDiv / secondDiv    + Xoff
 divss xmm0, xmm1
-addss xmm0, dword[xoff]
+addss xmm0, dword[yoff]
 
 cvtss2si eax, xmm0; to int
 mov dword[finalY2], eax
 
+
+;;;;;;;;;debug;;;;;;;;
+mov rdi, print_x1
+mov esi, dword[finalX2]
+mov rax, 0
+call printf
+
+mov rdi, print_y1
+mov esi, dword[finalY1]
+mov rax, 0
+call printf
+
+mov rdi, print_x2
+mov esi, dword[finalX2]
+mov rax, 0
+call printf
+
+mov rdi, print_y2
+mov esi, dword[finalY2]
+mov rax, 0
+call printf
+;;;;;;;;;debug;;;;;;;;
 
 mov rdi,qword[display_name]
 mov rsi,qword[window]
@@ -485,7 +545,8 @@ mov r8d,dword[finalY1]
 mov r9d,dword[finalX2]
 push qword[finalY2]
 call XDrawLine
-jmp mainloop
+
+jmp dessins
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -494,29 +555,30 @@ jmp mainloop
 
 
 normals:
+; jmp dessins
 ;;;;;;;;;;;;;;;;;;;;;
 ; normals
 ;;;;;;;;;;;;;;;;;;;;;
 
 mov al, 4
-mul byte[i]
+mul byte[i] ; numero de la face
 mov byte[facesPos], al ; 4 * 0 , 4 * 1 .. put ourselves in the right place
 
 ; get first point
 movzx ecx, byte[facesPos]
-movzx eax, byte[faces+ecx]
+mov eax, dword[faces+ecx*DWORD]
 mov dword[A], eax ; put point in A
 
 inc byte[facesPos]
 ; get second point
 movzx ecx, byte[facesPos]
-movzx eax, byte[faces+ecx]
+mov eax, dword[faces+ecx*DWORD]
 mov dword[B], eax ; put point in B
 
 inc byte[facesPos]
 ; get third point
 movzx ecx, byte[facesPos]
-movzx eax, byte[faces+ecx]
+mov eax, dword[faces+ecx*DWORD]
 mov dword[C], eax ; put point in C
 
 mov al, 3
@@ -602,6 +664,6 @@ mov esi, dword[normal]
 mov rax, 0
 call printf
 
-jg mainloop ; go next face if we can't draw this one
+jg nextmainloop ; go next face if we can't draw this one
 
 jmp dessins
