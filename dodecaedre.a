@@ -76,6 +76,10 @@ print_y1: db "Y1 = %d", 10, 0
 print_x2: db "X2 = %d", 10, 0
 print_y2: db "Y2 = %d", 10, 0
 
+print_ABC: db 10, "A = %d, B = %d, C = %d", 10, 0
+print_xyz: db 10, "XA = %d, YA = %d, XB = %d, XY = %d, XC = %d, YC = %d", 10, 0
+
+
 
 
 df: dd 400.0
@@ -581,44 +585,72 @@ movzx ecx, byte[facesPos]
 mov eax, dword[faces+ecx*DWORD]
 mov dword[C], eax ; put point in C
 
-mov al, 3
-mul byte[A]
-movzx ax, al
+
+
+; mov rdi, print_ABC
+; movzx esi, byte[A]
+; movzx edx, byte[B]
+; movzx ecx, byte[C]
+; mov rax, 0
+; call printf
+
 
 ;;;Vecteur A
-movzx ecx, ax
+mov al, 3
+mul byte[A]
+mov bl, al
+
+movzx ecx, bl
 movss xmm0, dword[dodec+ecx*DWORD]
 movss dword[xA], xmm0
 
-inc ax
-movzx ecx, ax
+inc bl
+movzx ecx, bl
 movss xmm0, dword[dodec+ecx*DWORD]
 movss dword[yA], xmm0
 ;;;
 
 
 ;;;Vecteur B
-movzx ecx, ax
+mov al, 3
+mul byte[B]
+mov bl, al
+
+movzx ecx, bl
 movss xmm0, dword[dodec+ecx*DWORD]
 movss dword[xB], xmm0
 
-inc ax
-movzx ecx, ax
+inc bl
+movzx ecx, bl
 movss xmm0, dword[dodec+ecx*DWORD]
 movss dword[yB], xmm0
 ;;;
 
 
 ;;;Vecteur C
-movzx ecx, ax
+mov al, 3
+mul byte[C]
+mov bl, al
+
+movzx ecx, bl
 movss xmm0, dword[dodec+ecx*DWORD]
 movss dword[xC], xmm0
 
-inc ax
-movzx ecx, ax
+inc bl
+movzx ecx, bl
 movss xmm0, dword[dodec+ecx*DWORD]
 movss dword[yC], xmm0
 ;;;
+
+mov rdi, print_xyz
+mov esi, dword[xA]
+mov edx, dword[yA]
+mov ecx, dword[xB]
+mov r8d, dword[yB]
+mov r9d, dword[xC]
+mov r10d, dword[yC]
+mov rax, 0
+call printf
 
 
 ; multiplications (XBA*YBC)-(YBA*XBC)
@@ -659,10 +691,10 @@ mov dword[normal], eax
 ; (normal > 0) can't see | (normal < 0) can see
 cmp dword[normal], 0
 
-mov rdi, print_debug
-mov esi, dword[normal]
-mov rax, 0
-call printf
+; mov rdi, print_debug
+; mov esi, dword[normal]
+; mov rax, 0
+; call printf
 
 jg nextmainloop ; go next face if we can't draw this one
 
