@@ -55,6 +55,9 @@ rotationX: resd 1
 rotationY: resd 1
 rotationZ: resd 1
 
+cosinus:	resd	360
+sinus:	resd	360
+
 section .data
 
 scan_int: db "%hhd", 0
@@ -62,6 +65,7 @@ print_int: db "value = %hhd", 10, 0
 print_point: db "point nb = %d", 10, 0
 print_face: db "value face = %d", 10, 0
 print_coords: db "%d coords = %f", 10, 0
+print_coords2: db "coords = %f", 10, 0
 print_debug: db "DEBUG=[%d]", 10, 0
 print_debug2: db "2 - DEBUG=[%d]  - %d", 10, 0
 print_ici: db "ici", 10, 0
@@ -78,14 +82,21 @@ print_y2: db "Y2 = %d", 10, 0
 
 print_ABC: db 10, "A = %d, B = %d, C = %d", 10, 0
 print_xyz: db 10, "XA = %d, YA = %d, XB = %d, XY = %d, XC = %d, YC = %d", 10, 0
+print_xyz2: db 10, "X = %f --- Y = %f --- Z = %f ---", 10, 0
 
-
+angle:	dd	0
+demiangle:	dd	180
 
 
 df: dd 400.0
 zoff: dd 400.0
 xoff: dd 200.0
 yoff: dd 200.0
+
+xRot: dd 0
+yRot: dd 0
+zRot: dd 0
+
 
 xBA: dd 0
 yBA: dd 0
@@ -198,6 +209,20 @@ faces:	dd	0,8,9,0
 
 section .text
 
+calculs_trigo:		; cette fonction précalcule les cosinus et sinus des angles de 0 à 360°
+					; et les sauvegarde dans les tableaux cosinus et sinus.
+	boucle_trigo:
+		fldpi	; st0=PI
+		fimul dword[angle]	; st0=PI*angle
+		fidiv dword[demiangle]	; st0=(PI*angle)/demi=angle en radians
+		fsincos		; st0=cos(angleradian), st1=sin(angleradian)
+		mov ecx,dword[angle]
+		fstp dword[cosinus+ecx*DWORD] ; cosinus[REAL8*angle]=st0=cos(angle) puis st0=sin(angle)
+		fstp dword[sinus+ecx*DWORD] ; sinus[REAL8*angle]=st0=sin(angle) puis st0 vide
+		inc dword[angle]
+		cmp dword[angle],360
+		jbe boucle_trigo
+
 
 ;##################################################
 ;########### PROGRAMME PRINCIPAL ##################
@@ -207,40 +232,68 @@ main:
 
 push rbp
 
-; ;-------------------
-; ; rotation X
-; mov rdi, enter_xRot
-; mov rax, 0
-; call printf
+;-------------------
+; rotation X
+mov rdi, enter_xRot
+mov rax, 0
+call printf
 
-; mov rdi, scan_int
-; mov rsi, rotationX
-; mov rax, 0
-; call scanf
+mov rdi, scan_int
+mov rsi, rotationX
+mov rax, 0
+call scanf
 
-; ;-------------------
-; ; rotation Y
-; mov rdi, enter_yRot
-; mov rax, 0
-; call printf
+;-------------------
+; rotation Y
+mov rdi, enter_yRot
+mov rax, 0
+call printf
 
-; mov rdi, scan_int
-; mov rsi, rotationY
-; mov rax, 0
-; call scanf
+mov rdi, scan_int
+mov rsi, rotationY
+mov rax, 0
+call scanf
 
 
-; ;-------------------
-; ; rotation Z
-; mov rdi, enter_zRot
-; mov rax, 0
-; call printf
+;-------------------
+; rotation Z
+mov rdi, enter_zRot
+mov rax, 0
+call printf
 
-; mov rdi, scan_int
-; mov rsi, rotationZ
-; mov rax, 0
-; call scanf
+mov rdi, scan_int
+mov rsi, rotationZ
+mov rax, 0
+call scanf
 
+
+
+mov byte[i], 0
+rotationLoop:
+
+	jmp editPoints
+
+	editPointsNext:
+	inc byte[i]; i++
+	cmp byte[i], 19; 20 faces => 0 to 19
+
+	jb rotationLoop ; je ?
+
+
+rotationdone:
+
+; edit angles
+; x' = x
+; y' = y*cos(angX) - z*sin(angX)
+; z' = y*sin(angX) + z*cos(angX)
+
+; x' = z*sin(angY) + x*cos(angY)
+; y' = y
+; z' = z*cos(angY) - x*sin(angY)
+
+; x' = x*cos(angZ) - y*sin(angZ)
+; y' = x*sin(angZ) + y*cos(angZ)
+; z' = z
 
 ;####################################
 ;## Code de création de la fenêtre ##
@@ -382,12 +435,12 @@ mov eax, dword[faces+ecx*DWORD] ; on recupere le point (0,1,2,3) depuis facesPos
 ; ;;;;;;;;;debug
 mov dword[savePoint1], eax ; on le met dans savePoint1
 
-;;;;;;;;;debug
-mov rdi, print_point
-mov esi, dword[savePoint1]
-mov rax, 0
-call printf
-;;;;;;;;;debug
+; ;;;;;;;;;debug
+; mov rdi, print_point
+; mov esi, dword[savePoint1]
+; mov rax, 0
+; call printf
+; ;;;;;;;;;debug
 
 inc byte[j]
 inc byte[facesPos]
@@ -520,25 +573,25 @@ mov dword[finalY2], eax
 
 
 ;;;;;;;;;debug;;;;;;;;
-mov rdi, print_x1
-mov esi, dword[finalX2]
-mov rax, 0
-call printf
+; mov rdi, print_x1
+; mov esi, dword[finalX2]
+; mov rax, 0
+; call printf
 
-mov rdi, print_y1
-mov esi, dword[finalY1]
-mov rax, 0
-call printf
+; mov rdi, print_y1
+; mov esi, dword[finalY1]
+; mov rax, 0
+; call printf
 
-mov rdi, print_x2
-mov esi, dword[finalX2]
-mov rax, 0
-call printf
+; mov rdi, print_x2
+; mov esi, dword[finalX2]
+; mov rax, 0
+; call printf
 
-mov rdi, print_y2
-mov esi, dword[finalY2]
-mov rax, 0
-call printf
+; mov rdi, print_y2
+; mov esi, dword[finalY2]
+; mov rax, 0
+; call printf
 ;;;;;;;;;debug;;;;;;;;
 
 mov rdi,qword[display_name]
@@ -642,15 +695,15 @@ movss xmm0, dword[dodec+ecx*DWORD]
 movss dword[yC], xmm0
 ;;;
 
-mov rdi, print_xyz
-mov esi, dword[xA]
-mov edx, dword[yA]
-mov ecx, dword[xB]
-mov r8d, dword[yB]
-mov r9d, dword[xC]
-mov r10d, dword[yC]
-mov rax, 0
-call printf
+; mov rdi, print_xyz
+; mov esi, dword[xA]
+; mov edx, dword[yA]
+; mov ecx, dword[xB]
+; mov r8d, dword[yB]
+; mov r9d, dword[xC]
+; mov r10d, dword[yC]
+; mov rax, 0
+; call printf
 
 
 ; multiplications (XBA*YBC)-(YBA*XBC)
@@ -699,3 +752,55 @@ cmp dword[normal], 0
 jg nextmainloop ; go next face if we can't draw this one
 
 jmp dessins
+
+
+
+editPoints:
+
+;;;;;;;;;debug
+mov rdi, print_point
+movzx esi, byte[i]
+mov rax, 0
+call printf
+;;;;;;;;;debug
+
+mov eax, 3
+mul byte[i]
+mov dword[pointPos], eax ; 3 * 0 , 3 * 1 .. put ourselves in the right place
+
+; get X
+mov ecx, dword[pointPos]
+movss xmm0, dword[dodec+ecx*DWORD]
+movss dword[xRot], xmm0
+inc dword[pointPos]
+
+
+; get Y
+mov ecx, dword[pointPos]
+movss xmm0, dword[dodec+ecx*DWORD]
+movss dword[yRot], xmm0
+inc dword[pointPos]
+
+
+; get Z
+mov ecx, dword[pointPos]
+movss xmm0, dword[dodec+ecx*DWORD]
+movss dword[zRot], xmm0
+inc dword[pointPos]
+
+mov rdi, print_debug
+mov esi, dword[pointPos]
+mov rax, 0
+call printf
+
+
+mov rdi, print_xyz2
+cvtss2sd xmm0, dword[xRot]
+cvtss2sd xmm1, dword[yRot]
+cvtss2sd xmm2, dword[zRot]
+mov rax, 3
+call printf
+
+jmp editPointsNext
+
+; editPointsNext
